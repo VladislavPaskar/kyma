@@ -129,7 +129,7 @@ async function checkFunctionResponse(functionNamespace, mockNamespace = 'mocks')
 
   // expect no error when authorized
   let res = await retryPromise(
-    () => axios.post(`https://lastorder.${host}/function`, { orderCode: "789" }, { 
+    () => axios.post(`https://lastorder.${host}/function`, { orderCode: "789" }, {
       timeout: 5000,
       headers: { Authorization: `bearer ${accessToken}`}
     }),
@@ -728,7 +728,12 @@ async function checkInClusterEventDeliveryHelper(targetNamespace, encoding) {
   await printStatusOfInClusterEventingInfrastructure(targetNamespace, encoding, "lastorder");
 
   // send event using function query parameter send=true
-  await retryPromise(() => axios.post(`https://${mockHost}`, { id: eventId }, { params: { send: true, encoding: encoding } }), 10, 1000)
+  await retryPromise(async () => {
+    const response = await axios.post(`https://${mockHost}`, {id: eventId}, {params: {send: true, encoding: encoding}});
+    expect(response.status).to.be.equal(204)
+}, 10, 1000)
+  debug(`Event ${eventId} was successfully published`, eventId);
+  
   // verify if event was received using function query parameter inappevent=eventId
   return await retryPromise(async () => {
     debug("Waiting for event: ", eventId);
