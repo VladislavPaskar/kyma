@@ -1,57 +1,101 @@
 const uuid = require('uuid');
 const {
+  DirectorConfig,
+  DirectorClient,
+  addScenarioInCompass,
+  assignRuntimeToScenario,
+  unregisterKymaFromCompass,
+} = require('../compass');
+const {
+  KEBConfig,
+  KEBClient,
   provisionSKR,
-  saveKubeconfig,
-} = require('../../kyma-environment-broker');
-
+  deprovisionSKR,
+} = require('../kyma-environment-broker');
+const {GardenerConfig, GardenerClient} = require('../gardener');
+const {
+  debug,
+  genRandom,
+  initializeK8sClient,
+  printRestartReport,
+  getContainerRestartsForAllNamespaces,
+  getEnvOrThrow,
+  switchDebug,
+} = require('../utils');
+const {
+  ensureCommerceMockWithCompassTestFixture,
+  checkInClusterEventDelivery,
+  checkFunctionResponse,
+  sendLegacyEventAndCheckResponse,
+} = require('../test/fixtures/commerce-mock');
+const {
+  checkServiceInstanceExistence,
+  ensureHelmBrokerTestFixture,
+} = require('../upgrade-test/fixtures/helm-broker');
+const {
+  cleanMockTestFixture,
+} = require('../test/fixtures/commerce-mock');
 const {
   KCPConfig,
   KCPWrapper,
-} = require('../../kcp/client');
-
+} = require('../kcp/client');
 const {
-  gardener,
-  keb,
-} = require('../../skr-test');
+  saveKubeconfig,
+} = require('../skr-svcat-migration-test/test-helpers');
 
-const {
-  getEnvOrThrow,
-  debug,
-} = require('../../utils');
+describe('SKR-Upgrade-test', function() {
+  switchDebug(on = true);
+  const keb = new KEBClient(KEBConfig.fromEnv());
+  const gardener = new GardenerClient(GardenerConfig.fromEnv());
 
-const instanceId = process.env.INSTANCE_ID || uuid.v4();
-const runtimeName = getEnvOrThrow('RUNTIME_NAME');
-const kymaVersion = getEnvOrThrow('KYMA_VERSION');
-const kymaOverridesVersion = process.env.KYMA_OVERRIDES_VERSION || '';
-const kcp = new KCPWrapper(KCPConfig.fromEnv());
+  const suffix = genRandom(4);
+  const runtimeName = getEnvOrThrow('RUNTIME_NAME');
+  const scenarioName = `test-${suffix}`;
+  const instanceId = getEnvOrThrow('INSTANCE_ID');
+  const subAccountID = keb.subaccountID;
+  const kymaOverridesVersion = process.env.KYMA_OVERRIDES_VERSION || '';
+  const kymaVersion = getEnvOrThrow('KYMA_VERSION');
 
-let skr;
+  debug(
+      `PlanID ${getEnvOrThrow('KEB_PLAN_ID')}`,
+      `SubAccountID ${subAccountID}`,
+      `instanceId ${instanceId}`,
+      `Scenario ${scenarioName}`,
+      `Runtime ${runtimeName}`,
+      // `Application ${appName}`,
+  );
 
-describe('Provision SKR cluster', function() {
-  this.timeout(60 * 60 * 1000 * 2); // 2h
+  const kcp = new KCPWrapper(KCPConfig.fromEnv());
+
+  this.timeout(60 * 60 * 1000 * 3); // 3h
   this.slow(5000);
-  before('Provision new SKR', async function() {
-    // login to kcp, required by provisionSKR method
+
+  const provisioningTimeout = 1000 * 60 * 60; // 1h
+  const deprovisioningTimeout = 1000 * 60 * 30; // 30m
+
+  const customParams = {'kymaVersion': kymaVersion};
+  if (kymaOverridesVersion) {
+    customParams['overridesVersion'] = kymaOverridesVersion;
+  }
+
+  let skr;
+
+  // SKR Provisioning
+
+  it(`Perform kcp login`, async function() {
     const version = await kcp.version([]);
-    debug('Login to KCP. Version: ', version);
+    debug(version);
+
     await kcp.login();
+    // debug(loginOutput)
+  });
 
-    // define params required by provisionSKR method
-    const provisioningTimeout = 1000 * 60 * 60; // 1h
-
-    const customParams = {'kymaVersion': kymaVersion};
-    if (kymaOverridesVersion) {
-      customParams['overridesVersion'] = kymaOverridesVersion;
-    }
-
-    debug(`Parameters:\n`,
-        `runtime ID: ${instanceId}\n`,
-        `runtime name: ${runtimeName}\n`,
-        `kyma version: ${kymaVersion}\n`,
-        `custom params: ${JSON.stringify(customParams)}\n`,
-    );
-
-    // Finally, call the provision SKR method with the provided params
+  it(`Provision SKR with ID ${instanceId}`, async function() {
+    console.log(`Provisioning SKR with version ${kymaVersion}`);
+    const customParams = {
+      'kymaVersion': kymaVersion,
+    };
+    debug(`Provision SKR with Custom Parameters ${JSON.stringify(customParams)}`);
     skr = await provisionSKR(
         keb,
         kcp,
@@ -61,17 +105,67 @@ describe('Provision SKR cluster', function() {
         null,
         null,
         customParams,
-        provisioningTimeout,
-    );
+        provisioningTimeout);
   });
 
-  describe('Check provisioned SKR', function() {
-    it('Should get Runtime Status after provisioning', async function() {
-      const runtimeStatus = await kcp.getRuntimeStatusOperations(instanceId);
-      debug(`\nRuntime status: ${runtimeStatus}`);
-    });
-    it(`Should save kubeconfig for the SKR to ~/.kube/config`, async function() {
-      await saveKubeconfig(skr.shoot.kubeconfig);
-    });
+  it(`Should get Runtime Status after provisioning`, async function() {
+    const runtimeStatus = await kcp.getRuntimeStatusOperations(instanceId);
+    console.log(`\nRuntime status: ${runtimeStatus}`);
+    await kcp.reconcileInformationLog(runtimeStatus);
   });
+
+  it(`Should save kubeconfig for the SKR to ~/.kube/config`, async function() {
+    saveKubeconfig(skr.shoot.kubeconfig);
+  });
+
+  // it('Should initialize K8s client', async function() {
+  //   await initializeK8sClient({kubeconfig: skr.shoot.kubeconfig});
+  // });
+
+  // Upgrade Test Praparation
+  // const director = new DirectorClient(DirectorConfig.fromEnv());
+  // const withCentralAppConnectivity = (process.env.WITH_CENTRAL_APP_CONNECTIVITY === 'true');
+  // const testNS = 'test';
+
+  // it('Assign SKR to scenario', async function() {
+  //   await addScenarioInCompass(director, scenarioName);
+  //   await assignRuntimeToScenario(director, skr.shoot.compassID, scenarioName);
+  // });
+
+  // it('CommerceMock test fixture should be ready', async function() {
+  //   await ensureCommerceMockWithCompassTestFixture(director,
+  //       appName,
+  //       scenarioName,
+  //       'mocks',
+  //       testNS,
+  //       withCentralAppConnectivity);
+  // });
+
+  // it('Helm Broker test fixture should be ready', async function() {
+  //   await ensureHelmBrokerTestFixture(testNS).catch((err) => {
+  //     console.dir(err); // first error is logged
+  //     return ensureHelmBrokerTestFixture(testNS);
+  //   });
+  // });
+
+  // Cleanup
+  const skipCleanup = getEnvOrThrow('SKIP_CLEANUP');
+  if (skipCleanup === 'FALSE') {
+    // it('Unregister Kyma resources from Compass', async function() {
+    //   await unregisterKymaFromCompass(director, scenarioName);
+    // });
+
+    // it('Test fixtures should be deleted', async function() {
+    //   await cleanMockTestFixture('mocks', testNS, true);
+    // });
+
+    it('Deprovision SKR', async function() {
+      try {
+        await deprovisionSKR(keb, kcp, instanceId, deprovisioningTimeout);
+      } finally {
+        const runtimeStatus = await kcp.getRuntimeStatusOperations(instanceId);
+        await kcp.reconcileInformationLog(runtimeStatus);
+      }
+    });
+  }
 });
