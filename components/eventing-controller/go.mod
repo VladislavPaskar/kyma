@@ -13,8 +13,8 @@ require (
 	github.com/kyma-project/kyma/common/logging v0.0.0-20220412113922-54faf51c33cb
 	github.com/kyma-project/kyma/components/application-operator v0.0.0-20220412113922-54faf51c33cb
 	github.com/mitchellh/hashstructure/v2 v2.0.2
-	github.com/nats-io/nats-server/v2 v2.7.4
-	github.com/nats-io/nats.go v1.14.0
+	github.com/nats-io/nats-server/v2 v2.9.0
+	github.com/nats-io/nats.go v1.16.1-0.20220906180156-a1017eec10b0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.19.0
 	github.com/pkg/errors v0.9.1
@@ -45,12 +45,12 @@ require (
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.14.4 // indirect
+	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/nats-io/jwt/v2 v2.2.1-0.20220113022732-58e87895b296 // indirect
+	github.com/nats-io/jwt/v2 v2.3.0 // indirect
 	github.com/nats-io/nkeys v0.3.0 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
@@ -62,12 +62,12 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.2.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	golang.org/x/crypto v0.0.0-20220331220935-ae2d96664a29 // indirect
+	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90 // indirect
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
-	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
+	golang.org/x/sys v0.0.0-20220906135438-9e1f76180b77 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	golang.org/x/time v0.0.0-20211116232009-f0f3c7e86c11 // indirect
+	golang.org/x/time v0.0.0-20220722155302-e5dcc9cfc0b9 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
