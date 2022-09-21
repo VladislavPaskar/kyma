@@ -7,7 +7,6 @@ import (
 	"time"
 
 	apigatewayv1beta1 "github.com/kyma-incubator/api-gateway/api/v1beta1"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -17,13 +16,10 @@ import (
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 
+	ce "github.com/cloudevents/sdk-go/v2"
 	eventingv1alpha2 "github.com/kyma-project/kyma/components/eventing-controller/api/v1alpha2"
-	"github.com/kyma-project/kyma/components/eventing-controller/pkg/deployment"
 	"github.com/kyma-project/kyma/components/eventing-controller/pkg/ems/api/events/types"
 	"github.com/kyma-project/kyma/components/eventing-controller/pkg/object"
-	"github.com/kyma-project/kyma/components/eventing-controller/utils"
-
-	ce "github.com/cloudevents/sdk-go/v2"
 
 	"github.com/kyma-project/kyma/components/eventing-controller/testing/event/cehelper"
 )
@@ -169,50 +165,6 @@ func MarkReady(r *apigatewayv1beta1.APIRule) {
 	}
 }
 
-type ProtoOpt func(p *eventingv1alpha2.ProtocolSettings)
-
-func NewProtocolSettings(opts ...ProtoOpt) *eventingv1alpha2.ProtocolSettings {
-	protoSettings := &eventingv1alpha2.ProtocolSettings{}
-	for _, o := range opts {
-		o(protoSettings)
-	}
-	return protoSettings
-}
-
-func WithBinaryContentMode() ProtoOpt {
-	return func(p *eventingv1alpha2.ProtocolSettings) {
-		p.ContentMode = utils.StringPtr(eventingv1alpha2.ProtocolSettingsContentModeBinary)
-	}
-}
-
-func WithExemptHandshake() ProtoOpt {
-	return func(p *eventingv1alpha2.ProtocolSettings) {
-		p.ExemptHandshake = func() *bool {
-			exemptHandshake := true
-			return &exemptHandshake
-		}()
-	}
-}
-
-func WithAtLeastOnceQOS() ProtoOpt {
-	return func(p *eventingv1alpha2.ProtocolSettings) {
-		p.Qos = utils.StringPtr(string(types.QosAtLeastOnce))
-	}
-}
-
-func WithDefaultWebhookAuth() ProtoOpt {
-	return func(p *eventingv1alpha2.ProtocolSettings) {
-		p.WebhookAuth = &eventingv1alpha2.WebhookAuth{
-			Type:         "oauth2",
-			GrantType:    "client_credentials",
-			ClientID:     "xxx",
-			ClientSecret: "xxx",
-			TokenURL:     "https://oauth2.xxx.com/oauth2/token",
-			Scope:        []string{"guid-identifier"},
-		}
-	}
-}
-
 type SubscriptionOpt func(subscription *eventingv1alpha2.Subscription)
 
 func NewSubscription(name, namespace string, opts ...SubscriptionOpt) *eventingv1alpha2.Subscription {
@@ -295,7 +247,7 @@ func WithFinalizers(finalizers []string) SubscriptionOpt {
 func WithStatusTypes(cleanEventTypes []eventingv1alpha2.EventType) SubscriptionOpt {
 	return func(sub *eventingv1alpha2.Subscription) {
 		if cleanEventTypes == nil {
-			sub.Status.InitializeCleanEventTypes()
+			sub.Status.InitializeEventTypes()
 		} else {
 			sub.Status.Types = cleanEventTypes
 		}
@@ -307,48 +259,6 @@ func WithEmsSubscriptionStatus(status string) SubscriptionOpt {
 		sub.Status.Backend.EmsSubscriptionStatus = &eventingv1alpha2.EmsSubscriptionStatus{
 			Status: status,
 		}
-	}
-}
-
-func WithWebhookAuthForBEB() SubscriptionOpt {
-	return func(s *eventingv1alpha2.Subscription) {
-		s.Spec.Protocol = "BEB"
-		s.Spec.ProtocolSettings = &eventingv1alpha2.ProtocolSettings{
-			ContentMode: func() *string {
-				contentMode := eventingv1alpha2.ProtocolSettingsContentModeBinary
-				return &contentMode
-			}(),
-			ExemptHandshake: exemptHandshake(true),
-			Qos:             utils.StringPtr(string(types.QosAtLeastOnce)),
-			WebhookAuth: &eventingv1alpha2.WebhookAuth{
-				Type:         "oauth2",
-				GrantType:    "client_credentials",
-				ClientID:     "xxx",
-				ClientSecret: "xxx",
-				TokenURL:     "https://oauth2.xxx.com/oauth2/token",
-				Scope:        []string{"guid-identifier"},
-			},
-		}
-	}
-}
-
-func WithProtocolBEB() SubscriptionOpt {
-	return func(s *eventingv1alpha2.Subscription) {
-		s.Spec.Protocol = "BEB"
-	}
-}
-
-func WithProtocolSettings(p *eventingv1alpha2.ProtocolSettings) SubscriptionOpt {
-	return func(s *eventingv1alpha2.Subscription) {
-		s.Spec.ProtocolSettings = p
-	}
-}
-
-// WithWebhookForNATS is a SubscriptionOpt for creating a Subscription with a webhook set to the NATS protocol.
-func WithWebhookForNATS() SubscriptionOpt {
-	return func(s *eventingv1alpha2.Subscription) {
-		s.Spec.Protocol = "NATS"
-		s.Spec.ProtocolSettings = &eventingv1alpha2.ProtocolSettings{}
 	}
 }
 
@@ -523,38 +433,6 @@ func NewNamespace(name string) *corev1.Namespace {
 //		Status: eventingv1alpha1.EventingBackendStatus{},
 //	}
 //}
-
-func NewEventingControllerDeployment() *appsv1.Deployment {
-	labels := map[string]string{
-		"app.kubernetes.io/name": "value",
-	}
-	return &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      deployment.ControllerName,
-			Namespace: deployment.ControllerNamespace,
-			Labels:    labels,
-		},
-		Spec: appsv1.DeploymentSpec{
-			Replicas: utils.Int32Ptr(1),
-			Selector: metav1.SetAsLabelSelector(labels),
-			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:   deployment.ControllerName,
-					Labels: labels,
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:  deployment.ControllerName,
-							Image: "eventing-controller-pod-image",
-						},
-					},
-				},
-			},
-		},
-		Status: appsv1.DeploymentStatus{},
-	}
-}
 
 //// WithMultipleConditions is a SubscriptionOpt for creating Subscriptions with multiple conditions.
 //func WithMultipleConditions() SubscriptionOpt {
