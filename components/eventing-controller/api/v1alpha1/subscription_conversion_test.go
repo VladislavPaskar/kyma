@@ -1,12 +1,65 @@
 package v1alpha1
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/kyma-project/kyma/components/eventing-controller/api/v1alpha2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func newV2DefaultSubscription(opts ...v1alpha2.SubscriptionOpt) *v1alpha2.Subscription {
+
+	const (
+		DefaultName        = "test"
+		DefaultNamespace   = "test-namespace"
+		DefaultSink        = "https://svc2.test.local"
+		DefaultID          = "id"
+		DefaultMaxInFlight = 10
+		DefaultStatusReady = true
+	)
+	var (
+		DefaultConditions = []v1alpha2.Condition{
+			{
+				Type:   v1alpha2.ConditionSubscriptionActive,
+				Status: "true",
+			},
+			{
+				Type:   v1alpha2.ConditionSubscribed,
+				Status: "false",
+			}}
+	)
+
+	newSub := &v1alpha2.Subscription{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Subscription",
+			APIVersion: "eventing.kyma-project.io/v1alpha2",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      DefaultName,
+			Namespace: DefaultNamespace,
+		},
+		Spec: v1alpha2.SubscriptionSpec{
+			TypeMatching: v1alpha2.TypeMatchingExact,
+			Sink:         DefaultSink,
+			ID:           DefaultID,
+			Config: map[string]string{
+				v1alpha2.MaxInFlightMessages: fmt.Sprint(DefaultMaxInFlight),
+			},
+		},
+		Status: v1alpha2.SubscriptionStatus{
+			Ready:      DefaultStatusReady,
+			Conditions: DefaultConditions,
+		},
+	}
+	for _, o := range opts {
+		o(newSub)
+	}
+
+	return newSub
+}
 
 func Test_Conversion(t *testing.T) {
 	type TestCase struct {
@@ -20,33 +73,33 @@ func Test_Conversion(t *testing.T) {
 	testCases := []TestCase{
 		{
 			name: "Converting NATS Subscription with empty Filters",
-			alpha1Sub: NewDefaultSubscription(
+			alpha1Sub: newDefaultSubscription(
 				WithEmptyFilter(),
 			),
-			alpha2Sub: v1alpha2.NewDefaultSubscription(),
+			alpha2Sub: newV2DefaultSubscription(),
 		},
 		{
 			name: "Converting NATS Subscription with multiple source which should result in a conversion error",
-			alpha1Sub: NewDefaultSubscription(
+			alpha1Sub: newDefaultSubscription(
 				WithFilter("app", OrderUpdatedEventType),
 				WithFilter("", OrderDeletedEventTypeNonClean),
 			),
-			alpha2Sub:        v1alpha2.NewDefaultSubscription(),
+			alpha2Sub:        newV2DefaultSubscription(),
 			wantErrMsgV1toV2: errorMultipleSourceMsg,
 		},
 		{
 			name: "Converting NATS Subscription with non-convertable maxInFlight in the config which should result in a conversion error",
-			alpha1Sub: NewDefaultSubscription(
+			alpha1Sub: newDefaultSubscription(
 				WithFilter("", OrderUpdatedEventType),
 			),
-			alpha2Sub: v1alpha2.NewDefaultSubscription(
+			alpha2Sub: newV2DefaultSubscription(
 				v1alpha2.WithMaxInFlight("nonint"),
 			),
 			wantErrMsgV2toV1: "strconv.Atoi: parsing \"nonint\": invalid syntax",
 		},
 		{
 			name: "Converting NATS Subscription with Filters",
-			alpha1Sub: NewDefaultSubscription(
+			alpha1Sub: newDefaultSubscription(
 				WithFilter(EventSource, OrderCreatedEventType),
 				WithFilter(EventSource, OrderUpdatedEventType),
 				WithFilter(EventSource, OrderDeletedEventTypeNonClean),
@@ -56,7 +109,7 @@ func Test_Conversion(t *testing.T) {
 					OrderDeletedEventType,
 				}),
 			),
-			alpha2Sub: v1alpha2.NewDefaultSubscription(
+			alpha2Sub: newV2DefaultSubscription(
 				v1alpha2.WithSource(EventSource),
 				v1alpha2.WithTypes([]string{
 					OrderCreatedEventType,
@@ -95,9 +148,9 @@ func Test_Conversion(t *testing.T) {
 		},
 		{
 			name: "Converting BEB Subscription",
-			alpha1Sub: NewDefaultSubscription(
+			alpha1Sub: newDefaultSubscription(
 				WithProtocolBEB(),
-				WithWebhookAuthForBEB(),
+				withWebhookAuthForBEB(),
 				WithFilter(EventSource, OrderCreatedEventType),
 				WithFilter(EventSource, OrderUpdatedEventType),
 				WithFilter(EventSource, OrderDeletedEventTypeNonClean),
@@ -108,7 +161,7 @@ func Test_Conversion(t *testing.T) {
 				}),
 				WithBEBStatusFields(),
 			),
-			alpha2Sub: v1alpha2.NewDefaultSubscription(
+			alpha2Sub: newV2DefaultSubscription(
 				v1alpha2.WithSource(EventSource),
 				v1alpha2.WithTypes([]string{
 					OrderCreatedEventType,
@@ -148,6 +201,7 @@ func Test_Conversion(t *testing.T) {
 				err := v1ToV2(testCase.alpha1Sub, convertedV1Alpha2)
 				if err != nil && testCase.wantErrMsgV1toV2 != "" {
 					require.Equal(t, err.Error(), testCase.wantErrMsgV1toV2)
+					assert.ErrorIs(t, err, fmt.Errorf(testCase.wantErrMsgV1toV2))
 				} else {
 					require.NoError(t, err)
 					v1ToV2Assertions(t, testCase.alpha2Sub, convertedV1Alpha2)

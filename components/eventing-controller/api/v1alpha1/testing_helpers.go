@@ -17,7 +17,7 @@ const (
 // +kubebuilder:object:generate=false
 type SubscriptionOpt func(subscription *Subscription)
 
-func NewDefaultSubscription(opts ...SubscriptionOpt) *Subscription {
+func newDefaultSubscription(opts ...SubscriptionOpt) *Subscription {
 	var defaultConditions []Condition
 	for _, condition := range v1alpha2.DefaultConditions {
 		defaultConditions = append(defaultConditions, ConditionV2ToV1(condition))
@@ -71,7 +71,7 @@ func WithStatusCleanEventTypes(cleanEventTypes []string) SubscriptionOpt {
 	}
 }
 
-func WithWebhookAuthForBEB() SubscriptionOpt {
+func withWebhookAuthForBEB() SubscriptionOpt {
 	return func(s *Subscription) {
 		s.Spec.Protocol = "BEB"
 		s.Spec.ProtocolSettings = &ProtocolSettings{

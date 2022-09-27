@@ -2,8 +2,6 @@ package v1alpha2
 
 import (
 	"fmt"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -27,36 +25,6 @@ var (
 
 // +kubebuilder:object:generate=false
 type SubscriptionOpt func(subscription *Subscription)
-
-func NewDefaultSubscription(opts ...SubscriptionOpt) *Subscription {
-	newSub := &Subscription{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Subscription",
-			APIVersion: "eventing.kyma-project.io/v1alpha2",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      DefaultName,
-			Namespace: DefaultNamespace,
-		},
-		Spec: SubscriptionSpec{
-			TypeMatching: TypeMatchingExact,
-			Sink:         DefaultSink,
-			ID:           DefaultID,
-			Config: map[string]string{
-				MaxInFlightMessages: fmt.Sprint(DefaultMaxInFlight),
-			},
-		},
-		Status: SubscriptionStatus{
-			Ready:      DefaultStatusReady,
-			Conditions: DefaultConditions,
-		},
-	}
-	for _, o := range opts {
-		o(newSub)
-	}
-
-	return newSub
-}
 
 func WithMaxInFlight(maxInFlight string) SubscriptionOpt {
 	return func(sub *Subscription) {
