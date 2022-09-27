@@ -9,12 +9,11 @@ import (
 	"github.com/kyma-project/kyma/components/eventing-controller/pkg/env"
 )
 
-const (
-	orderProcessedEventType = "prefix.testapp1023.order.processed.v1"
-	orderCreatedEventType   = "prefix.testapp1023.order.created.v1"
-)
-
 func TestBEBFilters_Deduplicate(t *testing.T) {
+	const (
+		orderCreatedEventType   = "prefix.testapp1023.order.created.v1"
+		orderProcessedEventType = "prefix.testapp1023.order.processed.v1"
+	)
 	filter1 := &BEBFilter{
 		EventSource: &Filter{
 			Type:     "exact",

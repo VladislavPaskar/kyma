@@ -9,24 +9,24 @@ import (
 )
 
 const (
-	EventSource                   = "source"
-	OrderCreatedEventType         = "prefix." + "noapp." + "order.created.v1"
-	OrderUpdatedEventType         = "prefix." + "app." + "order.updated.v1"
-	OrderDeletedEventType         = "prefix." + "noapp." + "order.deleted.v1"
-	OrderDeletedEventTypeNonClean = "prefix." + "noapp." + "order.deleted_&.v1"
+	eventSource                   = "source"
+	orderCreatedEventType         = "prefix." + "noapp." + "order.created.v1"
+	orderUpdatedEventType         = "prefix." + "app." + "order.updated.v1"
+	orderDeletedEventType         = "prefix." + "noapp." + "order.deleted.v1"
+	orderDeletedEventTypeNonClean = "prefix." + "noapp." + "order.deleted_&.v1"
 )
 
 const (
-	DefaultName        = "test"
-	DefaultNamespace   = "test-namespace"
-	DefaultSink        = "https://svc2.test.local"
-	DefaultID          = "id"
-	DefaultMaxInFlight = 10
-	DefaultStatusReady = true
+	defaultName        = "test"
+	defaultNamespace   = "test-namespace"
+	defaultSink        = "https://svc2.test.local"
+	defaultID          = "id"
+	defaultMaxInFlight = 10
+	defaultStatusReady = true
 )
 
 var (
-	DefaultConditions = []v1alpha2.Condition{
+	v2DefaultConditions = []v1alpha2.Condition{
 		{
 			Type:   v1alpha2.ConditionSubscriptionActive,
 			Status: "true",
@@ -38,11 +38,12 @@ var (
 )
 
 // +kubebuilder:object:generate=false
-type SubscriptionOpt func(subscription *Subscription)
+// TODO(nils): is this still required ?
+type subscriptionOpt func(subscription *Subscription)
 
-func newDefaultSubscription(opts ...SubscriptionOpt) *Subscription {
+func newDefaultSubscription(opts ...subscriptionOpt) *Subscription {
 	var defaultConditions []Condition
-	for _, condition := range DefaultConditions {
+	for _, condition := range v2DefaultConditions {
 		defaultConditions = append(defaultConditions, ConditionV2ToV1(condition))
 	}
 	newSub := &Subscription{
@@ -51,18 +52,18 @@ func newDefaultSubscription(opts ...SubscriptionOpt) *Subscription {
 			APIVersion: "eventing.kyma-project.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      DefaultName,
-			Namespace: DefaultNamespace,
+			Name:      defaultName,
+			Namespace: defaultNamespace,
 		},
 		Spec: SubscriptionSpec{
-			Sink:   DefaultSink,
-			ID:     DefaultID,
-			Config: &SubscriptionConfig{MaxInFlightMessages: DefaultMaxInFlight},
+			Sink:   defaultSink,
+			ID:     defaultID,
+			Config: &SubscriptionConfig{MaxInFlightMessages: defaultMaxInFlight},
 		},
 		Status: SubscriptionStatus{
 			Conditions: defaultConditions,
-			Ready:      DefaultStatusReady,
-			Config:     &SubscriptionConfig{MaxInFlightMessages: DefaultMaxInFlight},
+			Ready:      defaultStatusReady,
+			Config:     &SubscriptionConfig{MaxInFlightMessages: defaultMaxInFlight},
 		},
 	}
 	for _, o := range opts {
@@ -78,13 +79,13 @@ func newDefaultSubscription(opts ...SubscriptionOpt) *Subscription {
 	return newSub
 }
 
-func WithStatus(status bool) SubscriptionOpt {
+func withStatus(status bool) subscriptionOpt {
 	return func(sub *Subscription) {
 		sub.Status.Ready = status
 	}
 }
 
-func WithStatusCleanEventTypes(cleanEventTypes []string) SubscriptionOpt {
+func withStatusCleanEventTypes(cleanEventTypes []string) subscriptionOpt {
 	return func(sub *Subscription) {
 		if cleanEventTypes == nil {
 			sub.Status.InitializeCleanEventTypes()
@@ -94,7 +95,7 @@ func WithStatusCleanEventTypes(cleanEventTypes []string) SubscriptionOpt {
 	}
 }
 
-func withWebhookAuthForBEB() SubscriptionOpt {
+func withWebhookAuthForBEB() subscriptionOpt {
 	return func(s *Subscription) {
 		s.Spec.Protocol = "BEB"
 		s.Spec.ProtocolSettings = &ProtocolSettings{
@@ -119,13 +120,13 @@ func withWebhookAuthForBEB() SubscriptionOpt {
 	}
 }
 
-func WithProtocolBEB() SubscriptionOpt {
+func withProtocolBEB() subscriptionOpt {
 	return func(s *Subscription) {
 		s.Spec.Protocol = "BEB"
 	}
 }
 
-func WithBEBStatusFields() SubscriptionOpt {
+func withBEBStatusFields() subscriptionOpt {
 	return func(s *Subscription) {
 		s.Status.Ev2hash = 123
 		s.Status.ExternalSink = "testlink.com"
@@ -141,22 +142,22 @@ func WithBEBStatusFields() SubscriptionOpt {
 	}
 }
 
-// WithWebhookForNATS is a SubscriptionOpt for creating a Subscription with a webhook set to the NATS protocol.
-func WithWebhookForNATS() SubscriptionOpt {
+// withWebhookForNATS is a subscriptionOpt for creating a Subscription with a webhook set to the NATS protocol.
+func withWebhookForNATS() subscriptionOpt {
 	return func(s *Subscription) {
 		s.Spec.Protocol = "NATS"
 		s.Spec.ProtocolSettings = &ProtocolSettings{}
 	}
 }
 
-// WithFilter is a SubscriptionOpt for creating a Subscription with a specific event type filter,
+// withFilter is a subscriptionOpt for creating a Subscription with a specific event type filter,
 // that itself gets created from the passed eventSource and eventType.
-func WithFilter(eventSource, eventType string) SubscriptionOpt {
-	return func(subscription *Subscription) { AddFilter(eventSource, eventType, subscription) }
+func withFilter(eventSource, eventType string) subscriptionOpt {
+	return func(subscription *Subscription) { addFilter(eventSource, eventType, subscription) }
 }
 
-// AddFilter creates a new Filter from eventSource and eventType and adds it to the subscription.
-func AddFilter(eventSource, eventType string, subscription *Subscription) {
+// addFilter creates a new Filter from eventSource and eventType and adds it to the subscription.
+func addFilter(eventSource, eventType string, subscription *Subscription) {
 	if subscription.Spec.Filter == nil {
 		subscription.Spec.Filter = &BEBFilters{
 			Filters: []*BEBFilter{},
@@ -179,9 +180,9 @@ func AddFilter(eventSource, eventType string, subscription *Subscription) {
 	subscription.Spec.Filter.Filters = append(subscription.Spec.Filter.Filters, filter)
 }
 
-// WithEmptyFilter is a SubscriptionOpt for creating a subscription with an empty event type filter.
+// withEmptyFilter is a subscriptionOpt for creating a subscription with an empty event type filter.
 // Note that this is different from setting Filter to nil.
-func WithEmptyFilter() SubscriptionOpt {
+func withEmptyFilter() subscriptionOpt {
 	return func(subscription *Subscription) {
 		subscription.Spec.Filter = &BEBFilters{
 			Filters: []*BEBFilter{},
@@ -275,20 +276,20 @@ func newV2DefaultSubscription(opts ...v2SubscriptionOpt) *v1alpha2.Subscription 
 			APIVersion: "eventing.kyma-project.io/v1alpha2",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      DefaultName,
-			Namespace: DefaultNamespace,
+			Name:      defaultName,
+			Namespace: defaultNamespace,
 		},
 		Spec: v1alpha2.SubscriptionSpec{
 			TypeMatching: v1alpha2.TypeMatchingExact,
-			Sink:         DefaultSink,
-			ID:           DefaultID,
+			Sink:         defaultSink,
+			ID:           defaultID,
 			Config: map[string]string{
-				v1alpha2.MaxInFlightMessages: fmt.Sprint(DefaultMaxInFlight),
+				v1alpha2.MaxInFlightMessages: fmt.Sprint(defaultMaxInFlight),
 			},
 		},
 		Status: v1alpha2.SubscriptionStatus{
-			Ready:      DefaultStatusReady,
-			Conditions: DefaultConditions,
+			Ready:      defaultStatusReady,
+			Conditions: v2DefaultConditions,
 		},
 	}
 	for _, o := range opts {

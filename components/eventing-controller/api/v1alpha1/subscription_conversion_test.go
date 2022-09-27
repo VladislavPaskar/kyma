@@ -21,15 +21,15 @@ func Test_Conversion(t *testing.T) {
 		{
 			name: "Converting NATS Subscription with empty Filters",
 			alpha1Sub: newDefaultSubscription(
-				WithEmptyFilter(),
+				withEmptyFilter(),
 			),
 			alpha2Sub: newV2DefaultSubscription(),
 		},
 		{
 			name: "Converting NATS Subscription with multiple source which should result in a conversion error",
 			alpha1Sub: newDefaultSubscription(
-				WithFilter("app", OrderUpdatedEventType),
-				WithFilter("", OrderDeletedEventTypeNonClean),
+				withFilter("app", orderUpdatedEventType),
+				withFilter("", orderDeletedEventTypeNonClean),
 			),
 			alpha2Sub:        newV2DefaultSubscription(),
 			wantErrMsgV1toV2: errorMultipleSourceMsg,
@@ -37,7 +37,7 @@ func Test_Conversion(t *testing.T) {
 		{
 			name: "Converting NATS Subscription with non-convertable maxInFlight in the config which should result in a conversion error",
 			alpha1Sub: newDefaultSubscription(
-				WithFilter("", OrderUpdatedEventType),
+				withFilter("", orderUpdatedEventType),
 			),
 			alpha2Sub: newV2DefaultSubscription(
 				v2WithMaxInFlight("nonint"),
@@ -47,47 +47,47 @@ func Test_Conversion(t *testing.T) {
 		{
 			name: "Converting NATS Subscription with Filters",
 			alpha1Sub: newDefaultSubscription(
-				WithFilter(EventSource, OrderCreatedEventType),
-				WithFilter(EventSource, OrderUpdatedEventType),
-				WithFilter(EventSource, OrderDeletedEventTypeNonClean),
-				WithStatusCleanEventTypes([]string{
-					OrderCreatedEventType,
-					OrderUpdatedEventType,
-					OrderDeletedEventType,
+				withFilter(eventSource, orderCreatedEventType),
+				withFilter(eventSource, orderUpdatedEventType),
+				withFilter(eventSource, orderDeletedEventTypeNonClean),
+				withStatusCleanEventTypes([]string{
+					orderCreatedEventType,
+					orderUpdatedEventType,
+					orderDeletedEventType,
 				}),
 			),
 			alpha2Sub: newV2DefaultSubscription(
-				v2WithSource(EventSource),
+				v2WithSource(eventSource),
 				v2WithTypes([]string{
-					OrderCreatedEventType,
-					OrderUpdatedEventType,
-					OrderDeletedEventTypeNonClean,
+					orderCreatedEventType,
+					orderUpdatedEventType,
+					orderDeletedEventTypeNonClean,
 				}),
 				v2WithStatusTypes([]v1alpha2.EventType{
 					{
-						OriginalType: OrderCreatedEventType,
-						CleanType:    OrderCreatedEventType,
+						OriginalType: orderCreatedEventType,
+						CleanType:    orderCreatedEventType,
 					},
 					{
-						OriginalType: OrderUpdatedEventType,
-						CleanType:    OrderUpdatedEventType,
+						OriginalType: orderUpdatedEventType,
+						CleanType:    orderUpdatedEventType,
 					},
 					{
-						OriginalType: OrderDeletedEventTypeNonClean,
-						CleanType:    OrderDeletedEventType,
+						OriginalType: orderDeletedEventTypeNonClean,
+						CleanType:    orderDeletedEventType,
 					},
 				}),
 				v2WithStatusJetStreamTypes([]v1alpha2.JetStreamTypes{
 					{
-						OriginalType: OrderCreatedEventType,
+						OriginalType: orderCreatedEventType,
 						ConsumerName: "",
 					},
 					{
-						OriginalType: OrderUpdatedEventType,
+						OriginalType: orderUpdatedEventType,
 						ConsumerName: "",
 					},
 					{
-						OriginalType: OrderDeletedEventTypeNonClean,
+						OriginalType: orderDeletedEventTypeNonClean,
 						ConsumerName: "",
 					},
 				}),
@@ -96,39 +96,39 @@ func Test_Conversion(t *testing.T) {
 		{
 			name: "Converting BEB Subscription",
 			alpha1Sub: newDefaultSubscription(
-				WithProtocolBEB(),
+				withProtocolBEB(),
 				withWebhookAuthForBEB(),
-				WithFilter(EventSource, OrderCreatedEventType),
-				WithFilter(EventSource, OrderUpdatedEventType),
-				WithFilter(EventSource, OrderDeletedEventTypeNonClean),
-				WithStatusCleanEventTypes([]string{
-					OrderCreatedEventType,
-					OrderUpdatedEventType,
-					OrderDeletedEventType,
+				withFilter(eventSource, orderCreatedEventType),
+				withFilter(eventSource, orderUpdatedEventType),
+				withFilter(eventSource, orderDeletedEventTypeNonClean),
+				withStatusCleanEventTypes([]string{
+					orderCreatedEventType,
+					orderUpdatedEventType,
+					orderDeletedEventType,
 				}),
-				WithBEBStatusFields(),
+				withBEBStatusFields(),
 			),
 			alpha2Sub: newV2DefaultSubscription(
-				v2WithSource(EventSource),
+				v2WithSource(eventSource),
 				v2WithTypes([]string{
-					OrderCreatedEventType,
-					OrderUpdatedEventType,
-					OrderDeletedEventTypeNonClean,
+					orderCreatedEventType,
+					orderUpdatedEventType,
+					orderDeletedEventTypeNonClean,
 				}),
 				v2WithProtocolBEB(),
 				v2WithWebhookAuthForBEB(),
 				v2WithStatusTypes([]v1alpha2.EventType{
 					{
-						OriginalType: OrderCreatedEventType,
-						CleanType:    OrderCreatedEventType,
+						OriginalType: orderCreatedEventType,
+						CleanType:    orderCreatedEventType,
 					},
 					{
-						OriginalType: OrderUpdatedEventType,
-						CleanType:    OrderUpdatedEventType,
+						OriginalType: orderUpdatedEventType,
+						CleanType:    orderUpdatedEventType,
 					},
 					{
-						OriginalType: OrderDeletedEventTypeNonClean,
-						CleanType:    OrderDeletedEventType,
+						OriginalType: orderDeletedEventTypeNonClean,
+						CleanType:    orderDeletedEventType,
 					},
 				}),
 				v2WithBEBStatusFields(),
