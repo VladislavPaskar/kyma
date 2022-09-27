@@ -141,7 +141,7 @@ func Test_Conversion(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			//WHEN
-			t.Run("Test v1 to v2 conversion", func(t *testing.T) {
+			t.Run("Test spoke to hub (v1 to v2) conversion", func(t *testing.T) {
 				// skip the conversion if the backwards conversion cannot succeed
 				if testCase.wantErrMsgV2toV1 != "" {
 					return
@@ -162,7 +162,7 @@ func Test_Conversion(t *testing.T) {
 			})
 
 			// test ConvertFrom
-			t.Run("Test v2 to v1 conversion", func(t *testing.T) {
+			t.Run("Test hub to spoke (v2 to v1) conversion", func(t *testing.T) {
 				// skip the backwards conversion if the initial one cannot succeed
 				if testCase.wantErrMsgV1toV2 != "" {
 					return
