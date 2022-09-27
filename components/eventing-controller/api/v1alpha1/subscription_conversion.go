@@ -11,15 +11,15 @@ import (
 )
 
 const (
-	errorHubVersionMsg     = "hub version is not the expected v1alpha2 version"
-	errorMultipleSourceMsg = "subscription contains more than 1 eventSource"
+	ErrorHubVersionMsg     = "hub version is not the expected v1alpha2 version"
+	ErrorMultipleSourceMsg = "subscription contains more than 1 eventSource"
 )
 
 // ConvertTo converts this Subscription in version v1 to the Hub version v2.
 func (src *Subscription) ConvertTo(dstRaw conversion.Hub) error { //nolint:revive
 	dst, ok := dstRaw.(*v1alpha2.Subscription)
 	if !ok {
-		return errors.Errorf(errorHubVersionMsg)
+		return errors.Errorf(ErrorHubVersionMsg)
 	}
 	return v1ToV2(src, dst)
 }
@@ -77,7 +77,7 @@ func v1ToV2(src *Subscription, dst *v1alpha2.Subscription) error {
 func (dst *Subscription) ConvertFrom(srcRaw conversion.Hub) error { //nolint:revive
 	src, ok := srcRaw.(*v1alpha2.Subscription)
 	if !ok {
-		return errors.Errorf(errorHubVersionMsg)
+		return errors.Errorf(ErrorHubVersionMsg)
 	}
 	return v2ToV1(dst, src)
 }
@@ -215,7 +215,7 @@ func (src *Subscription) setV2SpecTypes(dst *v1alpha2.Subscription) error {
 			dst.Spec.Source = filter.EventSource.Value
 		}
 		if dst.Spec.Source != "" && filter.EventSource.Value != dst.Spec.Source {
-			return errors.New(errorMultipleSourceMsg)
+			return errors.New(ErrorMultipleSourceMsg)
 		}
 		dst.Spec.Types = append(dst.Spec.Types, filter.EventType.Value)
 	}

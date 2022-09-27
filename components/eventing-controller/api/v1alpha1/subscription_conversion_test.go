@@ -1,17 +1,19 @@
-package v1alpha1
+package v1alpha1_test
 
 import (
 	"testing"
 
+	"github.com/kyma-project/kyma/components/eventing-controller/api/v1alpha1"
 	"github.com/kyma-project/kyma/components/eventing-controller/api/v1alpha2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
 func Test_Conversion(t *testing.T) {
 	type TestCase struct {
 		name             string
-		alpha1Sub        *Subscription
+		alpha1Sub        *v1alpha1.Subscription
 		alpha2Sub        *v1alpha2.Subscription
 		wantErrMsgV1toV2 string
 		wantErrMsgV2toV1 string
@@ -32,7 +34,7 @@ func Test_Conversion(t *testing.T) {
 				withFilter("", orderDeletedEventTypeNonClean),
 			),
 			alpha2Sub:        newV2DefaultSubscription(),
-			wantErrMsgV1toV2: errorMultipleSourceMsg,
+			wantErrMsgV1toV2: v1alpha1.ErrorMultipleSourceMsg,
 		},
 		{
 			name: "Converting NATS Subscription with non-convertable maxInFlight in the config which should result in a conversion error",
@@ -144,8 +146,13 @@ func Test_Conversion(t *testing.T) {
 				if testCase.wantErrMsgV2toV1 != "" {
 					return
 				}
+				alpha1Sub := testCase.alpha1Sub
 				convertedV1Alpha2 := &v1alpha2.Subscription{}
-				err := v1ToV2(testCase.alpha1Sub, convertedV1Alpha2)
+
+				spoke := interface{}(alpha1Sub).(conversion.Convertible)
+				hub := interface{}(convertedV1Alpha2).(conversion.Hub)
+				err := spoke.ConvertTo(hub)
+
 				if err != nil && testCase.wantErrMsgV1toV2 != "" {
 					require.Equal(t, err.Error(), testCase.wantErrMsgV1toV2)
 				} else {
@@ -160,8 +167,12 @@ func Test_Conversion(t *testing.T) {
 				if testCase.wantErrMsgV1toV2 != "" {
 					return
 				}
-				convertedV1Alpha1 := &Subscription{}
-				err := v2ToV1(convertedV1Alpha1, testCase.alpha2Sub)
+				convertedV1Alpha1 := &v1alpha1.Subscription{}
+				alpha2Sub := testCase.alpha2Sub
+
+				spoke := interface{}(convertedV1Alpha1).(conversion.Convertible)
+				hub := interface{}(alpha2Sub).(conversion.Hub)
+				err := spoke.ConvertFrom(hub)
 				if err != nil && testCase.wantErrMsgV2toV1 != "" {
 					require.Equal(t, err.Error(), testCase.wantErrMsgV2toV1)
 				} else {
@@ -193,7 +204,7 @@ func v1ToV2Assertions(t *testing.T, wantSub, convertedSub *v1alpha2.Subscription
 	assert.Equal(t, wantSub.Status.Backend, convertedSub.Status.Backend)
 }
 
-func v2ToV1Assertions(t *testing.T, wantSub, convertedSub *Subscription) {
+func v2ToV1Assertions(t *testing.T, wantSub, convertedSub *v1alpha1.Subscription) {
 	assert.Equal(t, wantSub.ObjectMeta, convertedSub.ObjectMeta)
 
 	// Spec
