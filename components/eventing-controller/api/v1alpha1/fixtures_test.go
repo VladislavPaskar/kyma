@@ -4,9 +4,10 @@ import (
 	"fmt"
 
 	"github.com/kyma-project/kyma/components/eventing-controller/api/v1alpha1"
+	eventingtesting "github.com/kyma-project/kyma/components/eventing-controller/testing"
+	"github.com/kyma-project/kyma/components/eventing-controller/utils"
 
 	"github.com/kyma-project/kyma/components/eventing-controller/api/v1alpha2"
-	"github.com/kyma-project/kyma/components/eventing-controller/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -39,9 +40,7 @@ var (
 		}}
 )
 
-// +kubebuilder:object:generate=false
-// TODO(nils): is this still required ?
-type subscriptionOpt func(subscription *v1alpha1.Subscription)
+type subscriptionOpt = eventingtesting.SubscriptionOpt
 
 func newDefaultSubscription(opts ...subscriptionOpt) *v1alpha1.Subscription {
 	var defaultConditions []v1alpha1.Condition
@@ -81,16 +80,10 @@ func newDefaultSubscription(opts ...subscriptionOpt) *v1alpha1.Subscription {
 	return newSub
 }
 
-func withStatusCleanEventTypes(cleanEventTypes []string) subscriptionOpt {
-	return func(sub *v1alpha1.Subscription) {
-		if cleanEventTypes == nil {
-			sub.Status.InitializeCleanEventTypes()
-		} else {
-			sub.Status.CleanEventTypes = cleanEventTypes
-		}
-	}
-}
+var withStatusCleanEventTypes = eventingtesting.WithStatusCleanEventTypes
 
+// TODO:
+// var withWebhookAuthForBEB = eventingtesting.WithWebhookAuthForBEB
 func withWebhookAuthForBEB() subscriptionOpt {
 	return func(s *v1alpha1.Subscription) {
 		s.Spec.Protocol = "BEB"
@@ -116,11 +109,7 @@ func withWebhookAuthForBEB() subscriptionOpt {
 	}
 }
 
-func withProtocolBEB() subscriptionOpt {
-	return func(s *v1alpha1.Subscription) {
-		s.Spec.Protocol = "BEB"
-	}
-}
+var withProtocolBEB = eventingtesting.WithProtocolBEB
 
 func withBEBStatusFields() subscriptionOpt {
 	return func(s *v1alpha1.Subscription) {
@@ -138,35 +127,10 @@ func withBEBStatusFields() subscriptionOpt {
 	}
 }
 
-// withFilter is a subscriptionOpt for creating a Subscription with a specific event type filter,
-// that itself gets created from the passed eventSource and eventType.
-func withFilter(eventSource, eventType string) subscriptionOpt {
-	return func(subscription *v1alpha1.Subscription) { addFilter(eventSource, eventType, subscription) }
-}
+var withFilter = eventingtesting.WithFilter
 
-// addFilter creates a new Filter from eventSource and eventType and adds it to the subscription.
-func addFilter(eventSource, eventType string, subscription *v1alpha1.Subscription) {
-	if subscription.Spec.Filter == nil {
-		subscription.Spec.Filter = &v1alpha1.BEBFilters{
-			Filters: []*v1alpha1.BEBFilter{},
-		}
-	}
-
-	filter := &v1alpha1.BEBFilter{
-		EventSource: &v1alpha1.Filter{
-			Type:     "exact",
-			Property: "source",
-			Value:    eventSource,
-		},
-		EventType: &v1alpha1.Filter{
-			Type:     "exact",
-			Property: "type",
-			Value:    eventType,
-		},
-	}
-
-	subscription.Spec.Filter.Filters = append(subscription.Spec.Filter.Filters, filter)
-}
+// TODO:
+// var withEmptyFilter = eventingtesting.WithEmptyFilter
 
 // withEmptyFilter is a subscriptionOpt for creating a subscription with an empty event type filter.
 // Note that this is different from setting Filter to nil.
