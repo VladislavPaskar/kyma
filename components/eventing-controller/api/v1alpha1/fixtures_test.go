@@ -81,12 +81,6 @@ func newDefaultSubscription(opts ...subscriptionOpt) *v1alpha1.Subscription {
 	return newSub
 }
 
-func withStatus(status bool) subscriptionOpt {
-	return func(sub *v1alpha1.Subscription) {
-		sub.Status.Ready = status
-	}
-}
-
 func withStatusCleanEventTypes(cleanEventTypes []string) subscriptionOpt {
 	return func(sub *v1alpha1.Subscription) {
 		if cleanEventTypes == nil {
@@ -141,14 +135,6 @@ func withBEBStatusFields() subscriptionOpt {
 			LastFailedDelivery:       "1345613234",
 			LastFailedDeliveryReason: "failed",
 		}
-	}
-}
-
-// withWebhookForNATS is a subscriptionOpt for creating a Subscription with a webhook set to the NATS protocol.
-func withWebhookForNATS() subscriptionOpt {
-	return func(s *v1alpha1.Subscription) {
-		s.Spec.Protocol = "NATS"
-		s.Spec.ProtocolSettings = &v1alpha1.ProtocolSettings{}
 	}
 }
 
