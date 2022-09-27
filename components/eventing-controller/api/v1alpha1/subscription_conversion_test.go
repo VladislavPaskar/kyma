@@ -10,7 +10,85 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func newV2DefaultSubscription(opts ...v1alpha2.SubscriptionOpt) *v1alpha2.Subscription {
+type v2SubscriptionOpt func(subscription *v1alpha2.Subscription)
+
+func v2WithMaxInFlight(maxInFlight string) v2SubscriptionOpt {
+	return func(sub *v1alpha2.Subscription) {
+		sub.Spec.Config = map[string]string{
+			v1alpha2.MaxInFlightMessages: fmt.Sprint(maxInFlight),
+		}
+	}
+}
+
+func v2WithSource(source string) v2SubscriptionOpt {
+	return func(sub *v1alpha2.Subscription) {
+		sub.Spec.Source = source
+	}
+}
+
+func v2WithTypes(types []string) v2SubscriptionOpt {
+	return func(sub *v1alpha2.Subscription) {
+		sub.Spec.Types = types
+	}
+}
+func v2WithStatusJetStreamTypes(types []v1alpha2.JetStreamTypes) v2SubscriptionOpt {
+	return func(sub *v1alpha2.Subscription) {
+		sub.Status.Backend.Types = types
+	}
+}
+
+func v2WithStatusTypes(statusTypes []v1alpha2.EventType) v2SubscriptionOpt {
+	return func(sub *v1alpha2.Subscription) {
+		if statusTypes == nil {
+			sub.Status.InitializeEventTypes()
+			return
+		}
+		sub.Status.Types = statusTypes
+	}
+}
+
+func v2WithWebhookAuthForBEB() v2SubscriptionOpt {
+	return func(s *v1alpha2.Subscription) {
+		s.Spec.Config = map[string]string{
+			v1alpha2.Protocol:                        "BEB",
+			v1alpha2.ProtocolSettingsContentMode:     ProtocolSettingsContentModeBinary,
+			v1alpha2.ProtocolSettingsExemptHandshake: "true",
+			v1alpha2.ProtocolSettingsQos:             "true",
+			v1alpha2.WebhookAuthType:                 "oauth2",
+			v1alpha2.WebhookAuthGrantType:            "client_credentials",
+			v1alpha2.WebhookAuthClientID:             "xxx",
+			v1alpha2.WebhookAuthClientSecret:         "xxx",
+			v1alpha2.WebhookAuthTokenURL:             "https://oauth2.xxx.com/oauth2/token",
+			v1alpha2.WebhookAuthScope:                "guid-identifier,root",
+		}
+	}
+}
+
+func v2WithProtocolBEB() v2SubscriptionOpt {
+	return func(s *v1alpha2.Subscription) {
+		if s.Spec.Config == nil {
+			s.Spec.Config = map[string]string{}
+		}
+		s.Spec.Config[v1alpha2.Protocol] = "BEB"
+	}
+}
+
+func v2WithBEBStatusFields() v2SubscriptionOpt {
+	return func(s *v1alpha2.Subscription) {
+		s.Status.Backend.Ev2hash = 123
+		s.Status.Backend.ExternalSink = "testlink.com"
+		s.Status.Backend.FailedActivation = "123156464672"
+		s.Status.Backend.APIRuleName = "APIRule"
+		s.Status.Backend.EmsSubscriptionStatus = &v1alpha2.EmsSubscriptionStatus{
+			Status:                   "not active",
+			StatusReason:             "reason",
+			LastSuccessfulDelivery:   "",
+			LastFailedDelivery:       "1345613234",
+			LastFailedDeliveryReason: "failed",
+		}
+	}
+}
+func newV2DefaultSubscription(opts ...v2SubscriptionOpt) *v1alpha2.Subscription {
 
 	const (
 		DefaultName        = "test"
@@ -93,7 +171,7 @@ func Test_Conversion(t *testing.T) {
 				WithFilter("", OrderUpdatedEventType),
 			),
 			alpha2Sub: newV2DefaultSubscription(
-				v1alpha2.WithMaxInFlight("nonint"),
+				v2WithMaxInFlight("nonint"),
 			),
 			wantErrMsgV2toV1: "strconv.Atoi: parsing \"nonint\": invalid syntax",
 		},
@@ -110,13 +188,13 @@ func Test_Conversion(t *testing.T) {
 				}),
 			),
 			alpha2Sub: newV2DefaultSubscription(
-				v1alpha2.WithSource(EventSource),
-				v1alpha2.WithTypes([]string{
+				v2WithSource(EventSource),
+				v2WithTypes([]string{
 					OrderCreatedEventType,
 					OrderUpdatedEventType,
 					OrderDeletedEventTypeNonClean,
 				}),
-				v1alpha2.WithStatusTypes([]v1alpha2.EventType{
+				v2WithStatusTypes([]v1alpha2.EventType{
 					{
 						OriginalType: OrderCreatedEventType,
 						CleanType:    OrderCreatedEventType,
@@ -130,7 +208,7 @@ func Test_Conversion(t *testing.T) {
 						CleanType:    OrderDeletedEventType,
 					},
 				}),
-				v1alpha2.WithStatusJetStreamTypes([]v1alpha2.JetStreamTypes{
+				v2WithStatusJetStreamTypes([]v1alpha2.JetStreamTypes{
 					{
 						OriginalType: OrderCreatedEventType,
 						ConsumerName: "",
@@ -162,15 +240,15 @@ func Test_Conversion(t *testing.T) {
 				WithBEBStatusFields(),
 			),
 			alpha2Sub: newV2DefaultSubscription(
-				v1alpha2.WithSource(EventSource),
-				v1alpha2.WithTypes([]string{
+				v2WithSource(EventSource),
+				v2WithTypes([]string{
 					OrderCreatedEventType,
 					OrderUpdatedEventType,
 					OrderDeletedEventTypeNonClean,
 				}),
-				v1alpha2.WithProtocolBEB(),
-				v1alpha2.WithWebhookAuthForBEB(),
-				v1alpha2.WithStatusTypes([]v1alpha2.EventType{
+				v2WithProtocolBEB(),
+				v2WithWebhookAuthForBEB(),
+				v2WithStatusTypes([]v1alpha2.EventType{
 					{
 						OriginalType: OrderCreatedEventType,
 						CleanType:    OrderCreatedEventType,
@@ -184,7 +262,7 @@ func Test_Conversion(t *testing.T) {
 						CleanType:    OrderDeletedEventType,
 					},
 				}),
-				v1alpha2.WithBEBStatusFields(),
+				v2WithBEBStatusFields(),
 			),
 		},
 	}
@@ -201,7 +279,6 @@ func Test_Conversion(t *testing.T) {
 				err := v1ToV2(testCase.alpha1Sub, convertedV1Alpha2)
 				if err != nil && testCase.wantErrMsgV1toV2 != "" {
 					require.Equal(t, err.Error(), testCase.wantErrMsgV1toV2)
-					assert.ErrorIs(t, err, fmt.Errorf(testCase.wantErrMsgV1toV2))
 				} else {
 					require.NoError(t, err)
 					v1ToV2Assertions(t, testCase.alpha2Sub, convertedV1Alpha2)
