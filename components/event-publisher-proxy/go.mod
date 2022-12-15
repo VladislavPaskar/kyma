@@ -11,7 +11,7 @@ require (
 	github.com/kyma-project/kyma/components/eventing-controller v0.0.0-20221118103320-ffe096ff3455
 	github.com/nats-io/nats-server/v2 v2.9.9
 	github.com/nats-io/nats.go v1.21.0
-	github.com/onsi/gomega v1.24.1
+	github.com/onsi/gomega v1.24.2
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.14.0
 	github.com/stretchr/testify v1.8.1
@@ -71,7 +71,7 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
 	golang.org/x/crypto v0.0.0-20220926161630-eccd6366d1be // indirect
-	golang.org/x/net v0.3.0 // indirect
+	golang.org/x/net v0.4.0 // indirect
 	golang.org/x/sys v0.3.0 // indirect
 	golang.org/x/term v0.3.0 // indirect
 	golang.org/x/text v0.5.0 // indirect
